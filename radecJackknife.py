@@ -1,9 +1,9 @@
 import numpy as np
 
 class radecJackknife:
-    def __init__(self, lower_boundary):
-        self.rotation_matrix = np.array([[1.,0],[0.,1.0]])
+    def __init__(self, lower_boundary, theta = 0.0):
         self.lower_boundary = lower_boundary
+        self.theta = theta
         return None
 
     def radec_to_xyz(self, ra, dec):
@@ -20,24 +20,21 @@ class radecJackknife:
          phi = np.arctan(y/x)
          dec = np.rad2deg(np.pi/2. - theta)
          ra = np.rad2deg(phi)
-         pdb.set_trace()
          return ra, dec
 
-    def rotate_pts(self, ra, dec):
+    def rotate_pts(self, ra, dec, theta):
         center_ra = np.mean(ra)
         center_dec = np.mean(dec)
         uu, vv, ww = self.radec_to_xyz(center_ra, center_dec)
         xx, yy, zz = self.radec_to_xyz(ra, dec)
         #see http://inside.mines.edu/fs_home/gmurray/ArbitraryAxisRotation/
-        theta = 0.0#np.pi
         temp = (uu*xx+vv*yy+ww*zz)*(1.-np.cos(theta))
         xprime = uu*temp + xx*np.cos(theta)+ (-ww*yy + vv*zz)*np.sin(theta)
         yprime = vv*temp + yy*np.cos(theta)+ ( ww*xx - uu*zz)*np.sin(theta)
         zprime = ww*temp + zz*np.cos(theta)+ (-vv*xx + uu*yy)*np.sin(theta)
-        #transform back into original coordiantes
+        #transform back into original coordinates
         ra_prime, dec_prime = self.xyz_to_radec(xprime, yprime, zprime)
-        pdb.set_trace()
-        return (ra_prime, dec_prime)
+        return ra_prime, dec_prime
     
     def remove_discontiguous(self, ra, dec):
         new_ra = np.copy(ra)
@@ -50,7 +47,12 @@ class radecJackknife:
         self.all_boundaries = self.all_boundaries +  another.all_boundaries
         self.nregions = len(self.all_boundaries)        
 
-    def generate_regions(self, ra, dec, nregions, tol, max_iter):
+    def generate_regions(self, ra_input, dec_input, nregions, tol, max_iter):
+        if (np.abs(self.theta) > 0.):
+            ra, dec = self.rotate_pts(ra_input, dec_input, self.theta)
+        else:
+            ra = np.copy(ra_input)
+            dec = np.copy(dec_input)
         ra, dec = self.remove_discontiguous(ra, dec)
         #nregions will be somewhat approximate... is this ok?
         npts = len(ra)
@@ -94,7 +96,12 @@ class radecJackknife:
         #Store regions in object
         self.nregions = len(self.all_boundaries)
         
-    def label_pts(self, ra, dec):
+    def label_pts(self, ra_input, dec_input):
+        if (np.abs(self.theta) > 0.):
+            ra, dec = self.rotate_pts(ra_input, dec_input, self.theta)
+        else:
+            ra = np.copy(ra_input)
+            dec = np.copy(dec_input)
         ra, dec = self.remove_discontiguous(ra, dec)
         #ra, dec = rotate_pts(ra, dec)
         labels = np.zeros(len(ra))-1.
